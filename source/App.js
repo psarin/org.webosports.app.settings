@@ -284,12 +284,12 @@ enyo.kind({
 		if(enyo.Panels.isScreenNarrow()) {
 			this.$.AppPanels.setArrangerKind("CoreNaviArranger");
 			this.$.AppPanels.setDraggable(false);
-			this.$.AppPanels.$ContentPanels.addStyles("box-shadow: 0");
+			this.$.AppPanels.$.ContentPanels.setStyle("box-shadow: 0");
 		}
 		else {
 			this.$.AppPanels.setArrangerKind("CollapsingArranger");
 			this.$.AppPanels.setDraggable(true);
-			this.$.AppPanels.$.ContentPanels.addStyles("box-shadow: -4px 0px 4px rgba(0,0,0,0.3)");
+			this.$.AppPanels.$.ContentPanels.setStyle("box-shadow: -4px 0px 4px rgba(0,0,0,0.3)");
 		}
 	},
 	handleBackGesture: function(inSender, inEvent) {
