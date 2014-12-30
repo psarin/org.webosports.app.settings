@@ -52,15 +52,29 @@ enyo.kind({
 												{kind: "onyx.ToggleButton", name: "UsbDebuggingToggle", style: "float: right;", onChange: "onUsbDebuggingChanged"},
 												{kind: "onyx.Tooltip", content: "USB debugging"}
 											]}
-										]}
-								]},
+										]},
+										{ name: "ScreenOnGroup", kind: "enyo.FittableColumns", classes: "group-item", style: "word-wrap: break-word; height: 52px;", components:[
+											{name: "ScreenOnUsb", content: "Screen is always on when USB is connected", style: "padding-top: 10px;" },
+											{ name: "ScreenOffDecorator", kind: "onyx.TooltipDecorator", style: "padding-top: 10px; float: right;", components: [
+												{ name: "ScreenOffToggle",  kind:"onyx.ToggleButton", onContent: "Yes", offContent: "No", classes: "onyx-toggle-button", onChange:"screenOffToggleChanged" },
+												{kind: "onyx.Tooltip", content: "Screen on when connected to usb"}
+											]}
+										]},										
+									]},
 								{kind: "onyx.Groupbox", components: [
 									{kind: "onyx.GroupboxHeader", content: "Graphics"},
 									{kind: "enyo.FittableColumns", classes: "group-item", components:[
-										{kind: "Control", content: "Enable FPS counter", style: "padding-top: 10px;"},
+										{kind: "Control", content: "FPS counter", style: "padding-top: 10px;"},
 										{kind: "onyx.TooltipDecorator", fit: true, style:  "padding-top: 10px;", components: [
 											{name: "FpsCounterToggle", kind: "onyx.ToggleButton", style: "float: right;", onChange: "onFpsCounterChanged"},
-											{kind: "onyx.Tooltip", content: "Enable FPS counte"}
+											{kind: "onyx.Tooltip", content: "Enable FPS counter"}
+										]}
+									]},
+									{kind: "enyo.FittableColumns", classes: "group-item", components:[
+										{kind: "Control", content: "Performance UI", style: "padding-top: 10px;"},
+										{kind: "onyx.TooltipDecorator", fit: true, style:  "padding-top: 10px;", components: [
+											{name: "PerformanceUIToggle", kind: "onyx.ToggleButton", style: "float: right;", onChange: "onPerformanceUIChanged"},
+											{kind: "onyx.Tooltip", content: "Enable Performance UI"}
 										]}
 									]}
 								]}
@@ -73,9 +87,13 @@ enyo.kind({
 		{kind: "onyx.Toolbar", components:[
 			{name: "Grabber", kind: "onyx.Grabber"},
 		]},
-		{name: "GetStatus", kind: "DevModeService", method: "getStatus", onComplete: "onGetStatusResponse"},
-		{name: "SetStatus", kind: "DevModeService", method: "setStatus", onComplete: "onSetStatusResponse"},
-		{name: "EnableFpsCounter", kind: "enyo.PalmService", service: "luna://org.webosports.luna/", method: "setFpsCounter"}
+		{name: "GetDevModeStatus", kind: "DevModeService", method: "getStatus", onComplete: "onGetDevModeStatusResponse"},
+		{name: "SetDevModeStatus", kind: "DevModeService", method: "setStatus", onComplete: "onSetDevModeStatusResponse"},
+		{name: "ShowFps", kind: "enyo.PalmService", service: "luna://org.webosports.luna/", method: "showFps"},
+		{name: "ShowPerformanceUI", kind: "enyo.PalmService", service: "luna://org.webosports.luna/", method: "showPerformanceUI"},
+		{name: "GetGraphicsStatus", kind: "enyo.PalmService", service: "luna://org.webosports.luna/", subscribe: true, method: "getStatus", onComplete: "onGetGraphicsStatusResponse"},
+		{name: "GetDisplayProperty", kind: "DisplayService", method: "getProperty", onComplete: "handleGetPropertiesResponse"},
+		{name: "SetDisplayProperty", kind: "DisplayService", method: "setProperty" }
 	],
 	create: function(inSender, inEvent) {
 		this.inherited(arguments);
@@ -84,42 +102,52 @@ enyo.kind({
 			return;
 		}
 		this.palm = true;
-		this.$.GetStatus.send({});
+		this.$.GetDisplayProperty.send({properties: ["maximumBrightness", "timeout", "onWhenConnected"]});
+		this.$.GetDevModeStatus.send({});
+		this.$.GetGraphicsStatus.send({});
 	},
 	reflow: function (inSender) {
-        this.inherited(arguments);
-        if (enyo.Panels.isScreenNarrow()){
-            this.$.Grabber.applyStyle("visibility", "hidden");
-            this.$.DevModeDisabled.setStyle("padding: 35px 5% 35px 5%;");
-            this.$.DevModeSettings.setStyle("padding: 35px 5% 35px 5%;");
-        }else{
-            this.$.Grabber.applyStyle("visibility", "visible");
-        }
-    },
-    
-
+		this.inherited(arguments);
+		if (enyo.Panels.isScreenNarrow()){
+			this.$.Grabber.applyStyle("visibility", "hidden");
+			this.$.DevModeDisabled.setStyle("padding: 35px 5% 35px 5%;");
+			this.$.DevModeSettings.setStyle("padding: 35px 5% 35px 5%;");
+			this.$.ScreenOnGroup.addStyles("height: 90px;");
+			this.$.ScreenOnUsb.addStyles("max-width: 200px;");
+			this.$.ScreenOffDecorator.addStyles("padding-top: 30px;");
+		}
+		else {
+			this.$.Grabber.applyStyle("visibility", "visible");
+		}
+	},
 	/* Control handlers */
 	onDevModeChanged: function(inSender, inEvent) {
 		if (!this.palm) {
 			this.$.DevModePanels.setIndex(inEvent.value ? 1 : 0);
 			return;
 		}
-		this.$.SetStatus.send({"status": inEvent.value ? "enabled" : "disabled"});
+		this.$.SetDevModeStatus.send({"status": inEvent.value ? "enabled" : "disabled"});
 	},
 	onUsbDebuggingChanged: function(inSender, inEvent) {
 		console.log("onUsbDebuggingChanged");
 		if (!this.palm)
 			return;
-		this.$.SetStatus.send({"usbDebugging": inEvent.value ? "enabled" : "disabled"});
+		this.$.SetDevModeStatus.send({"usbDebugging": inEvent.value ? "enabled" : "disabled"});
 	},
 	onFpsCounterChanged: function (inSender, inEvent) {
 		console.log("onFpsCounterChanged");
 		if (!this.palm)
 			return;
-		this.$.EnableFpsCounter.send({"status":inEvent.value ? "enabled" : "disabled"});
+		this.$.ShowFps.send({"visible":inEvent.value});
+	},
+	onPerformanceUIChanged: function (inSender, inEvent) {
+		console.log("onPerformanceUIChanged");
+		if (!this.palm)
+			return;
+		this.$.ShowPerformanceUI.send({"visible":inEvent.value});
 	},
 	/* Service response handlers */
-	onGetStatusResponse: function (inSender, inResponse) {
+	onGetDevModeStatusResponse: function (inSender, inResponse) {
 		var result = inResponse.data;
 		console.log(JSON.stringify(result));
 		if (result.status === "enabled") {
@@ -133,7 +161,35 @@ enyo.kind({
 
 		this.$.UsbDebuggingToggle.setValue(result.usbDebugging === "enabled");
 	},
-	onSetStatusResponse: function(inSender, inEvent) {
-		this.$.GetStatus.send({});
+	onSetDevModeStatusResponse: function(inSender, inEvent) {
+		this.$.GetDevModeStatus.send({});
+	},
+	onGetGraphicsStatusResponse: function(inSender, inResponse) {
+		var result = inResponse.data;
+		this.$.FpsCounterToggle.setValue(result.fps);
+		this.$.PerformanceUIToggle.setValue(result.performanceUI);
+	},
+	screenOffToggleChanged: function(inSender, inEvent) {
+		this.log("sender:", inSender, ", event:", inEvent);
+		
+		if(this.palm) {
+			
+			if(inEvent.value === true) {
+				this.$.SetDisplayProperty.send({onWhenConnected: true});
+			}else {
+				this.$.SetDisplayProperty.send({onWhenConnected: false});
+				}
+		}else {
+			enyo.log(parseInt(this.$.BrightnessSlider.value));
+		}
+	},
+	handleGetPropertiesResponse: function(inSender, inResponse) {
+		enyo.log("Handling Get Properties Response");
+		var result = inResponse.data;
+		enyo.log(JSON.stringify(result));
+
+		if(result.onWhenConnected !== undefined) {
+			this.$.ScreenOffToggle.setValue(result.onWhenConnected);
+		}
 	}
 });

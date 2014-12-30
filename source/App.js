@@ -128,6 +128,7 @@ enyo.kind({
 	},
 	wifiToggleChanged: function(inSender) {
 		this.$.WiFiPanel.setToggleValue(inSender.value);
+		return true;
 	},
 	onDevModeGetStatusResponse: function(inSender, inEvent) {
 		var result = inEvent.data;
@@ -222,6 +223,11 @@ enyo.kind({
 			var targetPanelName = params.page + "Panel";
 			console.log("Switching to panel " + targetPanelName);
 			this.$.AppPanels.openPanel({ targetPanel: targetPanelName });
+		} else if (typeof(params.target) !== 'undefined' && 
+			typeof(params.target.ssid) !== 'undefined' &&
+			typeof(params.target.securityType !== 'undefined')) {
+			this.$.AppPanels.openPanel({targetPanel:"WiFiPanel"});
+			this.$.AppPanels.$.WiFiPanel.wifiTarget = params.target;
 		}
 	},
 	handleBackGesture: function(inSender, inEvent) {
